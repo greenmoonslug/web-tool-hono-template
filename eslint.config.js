@@ -18,7 +18,7 @@ export default defineConfig(
 	{
 		languageOptions: {
 			parserOptions: { projectService: true },
-			globals: { ...globals.browser, ...globals.node }
+			globals: { ...globals.browser, ...globals.node, ...globals.serviceworker }
 		},
 		rules: {
 			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.

@@ -5,31 +5,28 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 
 /**
- * プロジェクト内の _data ディレクトリを解決する
+ * プロジェクト内の data ディレクトリを解決する
  * 本番環境 (www/tools/my-tool/_db) でも開発環境 (projects/my-tool/_db) でも
- * `_db` の1つ上の階層にある `_data` を参照する（process.cwd() に依存しない）
+ * `_db` の1つ上の階層にある `data` を参照する（process.cwd() に依存しない）
  */
 function resolveDataDir(): string {
 	const parentDir = path.resolve(import.meta.dirname, '..');
-	// ローカルの vite preview 時に dist/_db から実行された場合はプロジェクトルートの _data を参照
+	// ローカルの vite preview 時に dist/_db から実行された場合はプロジェクトルートの data を参照
 	if (path.basename(parentDir) === 'dist') {
-		const rootData = path.resolve(parentDir, '../_data');
-		if (fs.existsSync(rootData)) {
-			return rootData;
-		}
+		return path.resolve(parentDir, '../data');
 	}
-	return path.resolve(parentDir, '_data');
+	return path.resolve(parentDir, 'data');
 }
 
 export const DATA_DIR = resolveDataDir();
 export const PUBLIC_DATA_DIR = path.resolve(DATA_DIR, 'public');
-export const UPLOADS_DATA_DIR = path.resolve(DATA_DIR, 'uploads');
+export const UPLOADS_DATA_DIR = path.resolve(DATA_DIR, '_uploads');
 
 // 必要なデータディレクトリを自動生成
 fs.mkdirSync(PUBLIC_DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DATA_DIR, { recursive: true });
 
-// サンプル公開画像 (_data/public/sample-icon.svg) が存在しなければ初期配置
+// サンプル公開画像 (data/public/sample-icon.svg) が存在しなければ初期配置
 const sampleSvgPath = path.resolve(PUBLIC_DATA_DIR, 'sample-icon.svg');
 if (!fs.existsSync(sampleSvgPath)) {
 	fs.writeFileSync(
@@ -43,7 +40,7 @@ if (!fs.existsSync(sampleSvgPath)) {
 	);
 }
 
-const dbPath = path.resolve(DATA_DIR, 'db.sqlite');
+const dbPath = path.resolve(DATA_DIR, '_db.sqlite');
 const sqlite = new Database(dbPath);
 
 // WALモードと外部キー制約を有効化
@@ -67,8 +64,8 @@ if (countRow.count === 0) {
 		.prepare('INSERT INTO items (title, description, image_path) VALUES (?, ?, ?)')
 		.run(
 			'サンプルアイテム',
-			'Svelte (静的フロントエンド) + Hono (api.ts) + Drizzle ORM (SQLite) の連携サンプルです。画像は _data/public から配信されています。',
-			'./_data/public/sample-icon.svg'
+			'Svelte (静的フロントエンド) + Hono (api/*.ts) + Drizzle ORM (SQLite) の連携サンプルです。画像は data/public から配信されています。',
+			'./data/public/sample-icon.svg'
 		);
 }
 

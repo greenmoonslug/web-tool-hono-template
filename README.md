@@ -10,10 +10,10 @@ Svelte 5（静的サイト出力）と Hono + Drizzle ORM（SQLite）による�
 - **フロントエンド**: Vite + Svelte 5 (Runes) + Tailwind CSS v4 による完全な静的ビルド（Svelte側でのSSR/バックエンド処理なし）
 - **モバイルWebアプリ登録（PWA）対応**: `public/manifest.webmanifest`・各種アイコン・Service Worker (`public/sw.js`) をすべて相対パス（`./`）で構成。サブディレクトリにデプロイされた状態でも、iOS / Android の「ホーム画面に追加（アプリとしてインストール）」からスタンドアロンWebアプリとして登録・起動可能
 - **バックエンド**: `api/*.ts` の TypeScript ファイルを PHP のように Hono サーバー上で動的に読み込んで実行（各ファイルは `export default async (c: Context) => c.json(...)` をエクスポート）
-- **データベース**: `_db/` に Drizzle ORM の定義、`_data/db.sqlite` に SQLite データベースを格納しプロジェクト内で一元管理
-- **アクセス制御**:
-  - `_`（アンダースコア）で始まるディレクトリ（`_db/`, `_data/` 等）は外部から直接アクセス不可（403）
-  - ただし `_data/public/` のみ例外として公開され、DBレコードに紐づく画像などを `./_data/public/...` の相対パスでフロントエンドから直接参照可能
+- **データベース**: `_db/` に Drizzle ORM の定義、`data/_db.sqlite` に SQLite データベースを格納しプロジェクト内で一元管理
+- **一貫したアクセス制御**:
+  - `_`（アンダースコア）で始まるファイル・ディレクトリ（`_db/`, `data/_db.sqlite`, `data/_uploads/` 等）はすべて例外なく外部から直接アクセス不可（403）
+  - アンダースコアの付かない `data/public/` はそのまま公開され、DBレコードに紐づく画像などを `./data/public/...` の相対パスでフロントエンドから直接参照可能
 - **ローカル開発環境**: `@hono/vite-dev-server` により、上記の本番サーバー仕様をローカルでそのままエミュレート
 - **一括ビルド出力**: `vite build` 実行時に、フロントエンドのビルド成果物 (`dist/index.html`, `dist/assets/`, `dist/manifest.webmanifest` 等) とともにバックエンド用の `api/` と `_db/` も `dist/` に出力
 
@@ -42,9 +42,9 @@ Svelte 5（静的サイト出力）と Hono + Drizzle ORM（SQLite）による�
 ├── _db/
 │   ├── schema.ts
 │   └── index.ts
-├── _data/               # (.gitignore)
-│   ├── db.sqlite
-│   ├── uploads/
+├── data/                # (.gitignore)
+│   ├── _db.sqlite
+│   ├── _uploads/
 │   └── public/
 ├── dist/                # (.gitignore)
 ├── vite.config.ts
@@ -60,7 +60,7 @@ bun run dev
 # または npm run dev
 ```
 
-初回アクセス時に `_data/db.sqlite`、`items` テーブル、およびサンプル画像 `_data/public/sample-icon.svg` が自動生成されます。
+初回アクセス時に `data/_db.sqlite`、`items` テーブル、およびサンプル画像 `data/public/sample-icon.svg` が自動生成されます。
 
 ### 2. 本番用ビルド
 
@@ -70,7 +70,7 @@ bun run build
 ```
 
 `dist/` ディレクトリに本番デプロイ用のスクリプト領域ファイル一式（`index.html`, `manifest.webmanifest`, `sw.js`, アイコン類, `assets/`, `api/`, `_db/`）が出力されます。
-デプロイ先のディレクトリ（例: `www/tools/my-tool/`）に `dist/` の中身を配置してください（本番側の `_data/` ディレクトリは保護され、上書きされません）。
+デプロイ先のディレクトリ（例: `www/tools/my-tool/`）に `dist/` の中身を配置してください（本番側の `data/` ディレクトリは保護され、上書きされません）。
 
 ### 3. ビルド結果のプレビュー・テスト
 

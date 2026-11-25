@@ -18,9 +18,11 @@
 		"src/**/*.ts",
 		"src/**/*.js",
 		"src/**/*.svelte",
+		"public/**/*.js",
 		"api/**/*.ts",
 		"_db/**/*.ts",
 		"vite.config.ts",
+		"svelte.config.js",
 		"prettier.config.js",
 		"eslint.config.js",
 		"playwright.config.ts"

@@ -10,7 +10,7 @@ node_modules
 /build
 
 # Data directory (SQLite DB & runtime files)
-/_data
+/data
 
 # OS
 .DS_Store

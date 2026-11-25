@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import getItemsHandler from '../api/get-items';
 import addItemHandler from '../api/add-item';
 import deleteItemHandler from '../api/delete-item';
-import { DATA_DIR, PUBLIC_DATA_DIR } from '../_db';
+import { DATA_DIR, PUBLIC_DATA_DIR, UPLOADS_DATA_DIR } from '../_db';
 import { createEmulatorApp } from '../vite.config';
 
 const handlerMap: Record<string, unknown> = {
@@ -14,12 +14,15 @@ const handlerMap: Record<string, unknown> = {
 };
 
 describe('Hono File-Based API (api/*.ts) & SQLite Database (_db)', () => {
-	const emulator = createEmulatorApp(async (filePath) => ({
-		default: handlerMap[filePath]
-	}));
+	const emulator = createEmulatorApp((filePath) =>
+		Promise.resolve({
+			default: handlerMap[filePath]
+		})
+	);
 
-	it('initializes _data directory and sample public asset', () => {
-		expect(fs.existsSync(path.resolve(DATA_DIR, 'db.sqlite'))).toBe(true);
+	it('initializes data directory (_db.sqlite, _uploads, public)', () => {
+		expect(fs.existsSync(path.resolve(DATA_DIR, '_db.sqlite'))).toBe(true);
+		expect(fs.existsSync(UPLOADS_DATA_DIR)).toBe(true);
 		expect(fs.existsSync(path.resolve(PUBLIC_DATA_DIR, 'sample-icon.svg'))).toBe(true);
 	});
 
@@ -39,7 +42,7 @@ describe('Hono File-Based API (api/*.ts) & SQLite Database (_db)', () => {
 			item: { id: number; title: string; imagePath: string | null };
 		};
 		expect(created.item.title).toBe('Vitest テストアイテム');
-		expect(created.item.imagePath).toBe('./_data/public/sample-icon.svg');
+		expect(created.item.imagePath).toBe('./data/public/sample-icon.svg');
 
 		// 2. GET /api/get-items.ts
 		const listRes = await emulator.request('/api/get-items.ts');
@@ -56,17 +59,17 @@ describe('Hono File-Based API (api/*.ts) & SQLite Database (_db)', () => {
 		expect(delRes.status).toBe(200);
 	});
 
-	it('enforces underscore directory protection while exposing _data/public', async () => {
-		// _data/public/* is publicly served
-		const publicRes = await emulator.request('/_data/public/sample-icon.svg');
+	it('blocks all underscore-prefixed files/directories without exception while serving data/public', async () => {
+		// data/public/* has no underscore segments and is publicly served
+		const publicRes = await emulator.request('/data/public/sample-icon.svg');
 		expect(publicRes.status).toBe(200);
 		expect(publicRes.headers.get('content-type')).toContain('image/svg+xml');
 
-		// Other _ directories (_db, _data/db.sqlite, _data/uploads) are blocked (403)
-		const dbFileRes = await emulator.request('/_data/db.sqlite');
+		// Underscore-prefixed files and directories (_db, data/_db.sqlite, data/_uploads) are all blocked (403)
+		const dbFileRes = await emulator.request('/data/_db.sqlite');
 		expect(dbFileRes.status).toBe(403);
 
-		const uploadsRes = await emulator.request('/_data/uploads/secret.txt');
+		const uploadsRes = await emulator.request('/data/_uploads/secret.txt');
 		expect(uploadsRes.status).toBe(403);
 
 		const dbCodeRes = await emulator.request('/_db/schema.ts');

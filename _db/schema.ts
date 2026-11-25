@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 
 /**
  * サンプルテーブル: items
- * - imagePath には `_data/public/` 配下の公開ファイルへの相対パス（例: `./_data/public/sample-icon.svg`）を格納可能
+ * - imagePath には `data/public/` 配下の公開ファイルへの相対パス（例: `./data/public/sample-icon.svg`）を格納可能
  */
 export const items = sqliteTable('items', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

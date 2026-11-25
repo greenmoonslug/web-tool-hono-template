@@ -18,7 +18,7 @@ const IGNORED_ROOT_TS_FILES = new Set([
 	'drizzle.config.ts'
 ]);
 
-const FRONTEND_OR_INTERNAL_DIRS = new Set(['src', 'node_modules', 'dist', 'assets']);
+const FRONTEND_OR_INTERNAL_DIRS = new Set(['src', 'node_modules', 'dist', 'assets', 'public', 'data']);
 
 const MIME_TYPES: Record<string, string> = {
 	'.html': 'text/html; charset=utf-8',
@@ -55,7 +55,7 @@ function resolveBackendScriptPath(pathname: string, baseDir: string): string | n
 	const segments = pathname.split('/').filter(Boolean);
 	if (segments.length === 0) return null;
 
-	// フロントエンド用ディレクトリや隠し・アンダースコアディレクトリは除外
+	// フロントエンド・データ領域ディレクトリや隠し・アンダースコア要素は除外
 	if (FRONTEND_OR_INTERNAL_DIRS.has(segments[0])) return null;
 	if (segments.some((seg) => seg.startsWith('_') || seg.startsWith('.'))) return null;
 
@@ -75,8 +75,8 @@ function resolveBackendScriptPath(pathname: string, baseDir: string): string | n
 
 /**
  * 本番Honoサーバーの仕様をエミュレートするHonoアプリケーションを生成する
- * - `_data/public/*` は静的ファイルとして公開
- * - それ以外の `_` で始まるディレクトリ（`_db/`, `_data/` 等）は 403 Forbidden
+ * - アンダースコア（`_`）で始まるファイル・ディレクトリ（`_db/`, `data/_db.sqlite`, `data/_uploads/` 等）はすべて例外なく 403 Forbidden
+ * - `data/` 配下の非アンダースコアファイル（`data/public/*` 等）は静的ファイルとして配信
  * - `api/*.ts` 等のTypeScriptファイルへのリクエストをPHPのように動的importして `export default (c: Context) => ...` を実行
  */
 export function createEmulatorApp(
@@ -85,14 +85,24 @@ export function createEmulatorApp(
 ) {
 	const app = new Hono();
 
-	// 1. _data/public/* の静的ファイル公開
-	app.on(['GET', 'HEAD'], '/_data/public/*', (c) => {
+	// 1. アンダースコアで始まるすべてのディレクトリ・ファイル（_db, data/_db.sqlite, data/_uploads 等）へのアクセスを例外なく遮断
+	app.all('*', async (c, next) => {
 		const url = new URL(c.req.url);
-		const relPath = decodeURIComponent(url.pathname.replace(/^\/_data\/public\//, ''));
-		const publicRoot = path.resolve(ROOT_DIR, '_data/public');
-		const targetPath = path.resolve(publicRoot, relPath);
+		const segments = url.pathname.split('/').filter(Boolean);
+		if (segments.some((seg) => seg.startsWith('_'))) {
+			return c.text('Forbidden: Underscore-prefixed files and directories are private', 403);
+		}
+		await next();
+	});
 
-		if (!targetPath.startsWith(publicRoot + path.sep) && targetPath !== publicRoot) {
+	// 2. data/* 配下の公開ファイル（data/public/* など、アンダースコアを含まないパス）の静的ファイル配信
+	app.on(['GET', 'HEAD'], '/data/*', (c) => {
+		const url = new URL(c.req.url);
+		const relPath = decodeURIComponent(url.pathname.replace(/^\/data\//, ''));
+		const dataRoot = path.resolve(ROOT_DIR, 'data');
+		const targetPath = path.resolve(dataRoot, relPath);
+
+		if (!targetPath.startsWith(dataRoot + path.sep) && targetPath !== dataRoot) {
 			return c.text('Forbidden', 403);
 		}
 		if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
@@ -106,16 +116,6 @@ export function createEmulatorApp(
 			status: 200,
 			headers: { 'Content-Type': contentType }
 		});
-	});
-
-	// 2. アンダースコアで始まるディレクトリ（_db, _data 等）への直接アクセスを遮断
-	app.all('*', async (c, next) => {
-		const url = new URL(c.req.url);
-		const segments = url.pathname.split('/').filter(Boolean);
-		if (segments.some((seg) => seg.startsWith('_'))) {
-			return c.text('Forbidden: Underscore directories are private', 403);
-		}
-		await next();
 	});
 
 	// 3. Apache/PHPライクなファイルベースTypeScript実行 (/api/get-items.ts など)
@@ -195,9 +195,10 @@ function honoBackendBuildAndPreviewPlugin(): Plugin {
 				const segments = urlPath.split('/').filter(Boolean);
 
 				const isUnderscoreRequest = segments.some((s) => s.startsWith('_'));
+				const isDataRequest = segments[0] === 'data';
 				const isBackendScriptRequest = resolveBackendScriptPath(urlPath, baseDir) !== null;
 
-				if (isUnderscoreRequest || isBackendScriptRequest) {
+				if (isUnderscoreRequest || isDataRequest || isBackendScriptRequest) {
 					void listener(req, res);
 					return;
 				}
@@ -223,14 +224,14 @@ export default defineConfig({
 				/^\/node_modules\/.*/,
 				/^\/\.vite\/.*/,
 				/^\/favicon\..+$/,
-				/^(?!\/_).*\.(css|svelte|vue|jsx|tsx|mjs|js|map|png|jpg|jpeg|gif|svg|webp|ico|webmanifest)$/
+				/^(?!\/_|.*\/_|\/data\/).*\.(css|svelte|vue|jsx|tsx|mjs|js|map|png|jpg|jpeg|gif|svg|webp|ico|webmanifest)$/
 			],
-			loadModule: async (server) => {
+			loadModule: (server) => {
 				const app = createEmulatorApp((filePath) => server.ssrLoadModule(filePath), ROOT_DIR);
-				return {
+				return Promise.resolve({
 					fetch: async (req: Request, env: unknown) =>
 						await app.fetch(req, env as Record<string, unknown>)
-				};
+				});
 			}
 		}),
 		honoBackendBuildAndPreviewPlugin()

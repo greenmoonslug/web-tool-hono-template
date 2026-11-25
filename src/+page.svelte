@@ -70,7 +70,7 @@
 			Web Tool Template サンプル
 		</h1>
 		<p class="mt-1 text-sm text-slate-600">
-			相対パスによるファイルベースAPI呼び出し（<code class="rounded bg-slate-200/70 px-1.5 py-0.5 text-xs">./api/*.ts</code>）と、公開データ領域（<code class="rounded bg-slate-200/70 px-1.5 py-0.5 text-xs">./_data/public/</code>）の参照サンプルです。
+			相対パスによるファイルベースAPI呼び出し（<code class="rounded bg-slate-200/70 px-1.5 py-0.5 text-xs">./api/*.ts</code>）と、公開データ領域（<code class="rounded bg-slate-200/70 px-1.5 py-0.5 text-xs">./data/public/</code>）の参照サンプルです。
 		</p>
 	</header>
 
@@ -120,7 +120,7 @@
 						bind:checked={useSampleImage}
 						class="h-4 w-4 rounded border-slate-300 text-blue-600"
 					/>
-					<span><code>./_data/public/sample-icon.svg</code> を紐づける</span>
+					<span><code>./data/public/sample-icon.svg</code> を紐づける</span>
 				</label>
 
 				<button

@@ -15,10 +15,10 @@ AIエージェントがこのテンプレートをベースに機能開発・修
    - 本番環境はHonoベースのWebサーバー上で動作し、ディレクトリ構造をそのままURLとして公開するファイルベースルーティングを行います。
    - `api/` 配下の `.ts` ファイル（例: `api/get-items.ts`）がリクエストされた際、PHPのようにサーバー内で動的 `import` されて実行されます。
    - 各 `.ts` ファイルは `Hono` インスタンスではなく、**`hono.Context` (`c`) を受け取って `c.json()` や `c.html()` のレスポンスを返す関数を `export default` します**。
-   - **`_`（アンダースコア）で始まるディレクトリ（`_db/`, `_data/` 等）の中身は非公開（403 Forbidden）**です。
-   - **例外として `_data/public/` のみ公開**されます。ここには「DBレコードに紐づく画像など、フロントエンドから直接参照されるファイル」を配置します。
+   - **`_`（アンダースコア）で始まるファイル・ディレクトリ（`_db/`, `data/_db.sqlite`, `data/_uploads/` 等）はすべて例外なく非公開（403 Forbidden）**です。
+   - データ領域 `data/` のうち、アンダースコアが付かない `data/public/` はそのまま公開されます。ここには「DBレコードに紐づく画像など、フロントエンドから直接参照されるファイル」を配置します。
 3. **ローカル開発サーバー (`@hono/vite-dev-server`)**
-   - `vite.config.ts` にて `@hono/vite-dev-server` を構成し、本番サーバーと同じルーティング（`/api/*.ts` → 対応する `api/*.ts` の実行、`_data/public/*` の公開、その他 `_` ディレクトリの遮断）をローカルで再現しています。
+   - `vite.config.ts` にて `@hono/vite-dev-server` を構成し、本番サーバーと同じルーティング（`/api/*.ts` → 対応する `api/*.ts` の実行、`data/public/*` の公開、すべての `_` 始まりファイル・ディレクトリの遮断）をローカルで再現しています。
    - `vite build` 実行時には、フロントエンドの静的ファイル (`dist/index.html`, `dist/assets/`, `dist/manifest.webmanifest` 等) に加え、バックエンド用の `api/` と `_db/` も `dist/` に出力されます。
 
 ---
@@ -38,10 +38,10 @@ AIエージェントがこのテンプレートをベースに機能開発・修
 | `src/lib/api.ts` | フロントエンド | 公開(ビルド後) | フロントエンド用API呼び出しラッパー (`fetch('./api/*.ts')`) |
 | `api/*.ts` | バックエンド | 実行のみ | 役割ごとに分割されたAPIハンドラ群（ビルド時に `dist/api/` へコピー） |
 | `_db/schema.ts` | バックエンド | 非公開 (403) | Drizzle ORM (SQLite) のテーブル定義 |
-| `_db/index.ts` | バックエンド | 非公開 (403) | `_data/db.sqlite` への接続・初期化処理 |
-| `_data/db.sqlite` | データ領域 | 非公開 (403) | SQLiteデータベースファイル（`.gitignore` 対象・デプロイ時も保護） |
-| `_data/uploads/` | データ領域 | 非公開 (403) | 非公開アップロードファイル領域（バックエンド経由でのみ読み書き・配信） |
-| `_data/public/` | データ領域 | **公開** | フロントエンドから `./_data/public/...` で直接参照可能な公開データ領域 |
+| `_db/index.ts` | バックエンド | 非公開 (403) | `data/_db.sqlite` への接続・初期化処理 |
+| `data/_db.sqlite` | データ領域 | 非公開 (403) | SQLiteデータベースファイル（`.gitignore` 対象・デプロイ時も保護） |
+| `data/_uploads/` | データ領域 | 非公開 (403) | 非公開アップロードファイル領域（バックエンド経由でのみ読み書き・配信） |
+| `data/public/` | データ領域 | **公開** | フロントエンドから `./data/public/...` で直接参照可能な公開データ領域 |
 
 ---
 
@@ -49,8 +49,8 @@ AIエージェントがこのテンプレートをベースに機能開発・修
 
 ### 鉄則1：すべてのURL・パス指定は「相対パス (`./`)」を使うこと
 このテンプレートで作成されたアプリは、サーバールート (`/`) だけでなく**サブディレクトリ（例: `/tools/my-tool/`）にもデプロイされます**。
-- **NG**: `fetch('/api/get-items.ts')`, `<img src="/_data/public/foo.png">`, `<a href="/about">`
-- **OK**: `fetch('./api/get-items.ts')`, `<img src="./_data/public/foo.png">`, `<a href="./about">`
+- **NG**: `fetch('/api/get-items.ts')`, `<img src="/data/public/foo.png">`, `<a href="/about">`
+- **OK**: `fetch('./api/get-items.ts')`, `<img src="./data/public/foo.png">`, `<a href="./about">`
 - Viteの `base: './'` 設定と合わせて、どこに配置されても動作するように必ず `./` 始まりの相対パスを使用してください。
 
 ### 鉄則2：`api/` 配下には役割ごとに `.ts` ファイルを作成し、`Context` ハンドラを `export default` すること
@@ -71,7 +71,7 @@ export default async (c: Context) => {
 
 ### 鉄則3：サーバー側のファイルパス解決には `import.meta.dirname` を使うこと
 本番サーバーでは複数のツールがサブディレクトリで動くため、`process.cwd()` がこのプロジェクトのルートを指しているとは限りません。
-- **NG**: `path.resolve(process.cwd(), '_data/db.sqlite')`
+- **NG**: `path.resolve(process.cwd(), 'data/_db.sqlite')`
 - **OK**: `_db/index.ts` で定義されている `DATA_DIR`, `PUBLIC_DATA_DIR`, `UPLOADS_DATA_DIR`（`import.meta.dirname` 基準）を使用する。
 
 ### 鉄則4：フロントエンドからサーバーコードを直接値インポートしないこと
@@ -80,9 +80,9 @@ export default async (c: Context) => {
 
 ### 鉄則5：ファイルの保存先の使い分け
 - **フロントエンドから `<img>` 等で直接表示したい画像・ファイル**:
-  - サーバー側で `PUBLIC_DATA_DIR` (`_data/public/`) に保存し、DBには `'./_data/public/<ファイル名>'` を保存してください。
+  - サーバー側で `PUBLIC_DATA_DIR` (`data/public/`) に保存し、DBには `'./data/public/<ファイル名>'` を保存してください。
 - **直接URLを知られてもアクセスさせたくないファイル・内部データ**:
-  - サーバー側で `UPLOADS_DATA_DIR` (`_data/uploads/`) に保存し、`api/*.ts` のエンドポイント内で権限等を確認してから配信・処理してください。
+  - サーバー側で `UPLOADS_DATA_DIR` (`data/_uploads/`) に保存し、`api/*.ts` のエンドポイント内で権限等を確認してから配信・処理してください。
 
 ### 鉄則6：モバイルWebアプリ（PWA）設定の維持とアプリ名の更新
 作成するツールの名称が決まったら、以下の箇所のアプリ名・テーマカラーをツールに合わせて更新してください：

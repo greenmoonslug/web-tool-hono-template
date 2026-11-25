@@ -22,7 +22,7 @@ export default async (c: Context) => {
 		.values({
 			title,
 			description: body.description?.trim() ?? '',
-			imagePath: body.useSampleImage !== false ? './_data/public/sample-icon.svg' : null
+			imagePath: body.useSampleImage !== false ? './data/public/sample-icon.svg' : null
 		})
 		.returning();
 

@@ -18,9 +18,9 @@
 ├── _db/                                 
 │   ├── schema.ts                        
 │   └── index.ts                         
-├── _data/               # (.gitignore)  
-│   ├── db.sqlite
-│   ├── uploads/
+├── data/                # (.gitignore)  
+│   ├── _db.sqlite
+│   ├── _uploads/
 │   └── public/
 ├── dist/                # (.gitignore)
 ├── vite.config.ts
@@ -39,7 +39,7 @@
 ├── _db/                     # [スクリプト領域] DB定義
 │   ├── schema.ts
 │   └── index.ts
-└── _data/                   # [データ領域] 更新対象外（保護）
-     ├── db.sqlite           #   └ バックエンド(SQLite)が参照
-     ├── uploads/            #   └ バックエンド経由で配信
-     └── public/             #   └ フロントエンドが直接参照
+└── data/                    # [データ領域] 更新対象外（保護）
+     ├── _db.sqlite          #   ├ 非公開(403): バックエンド(SQLite)が参照
+     ├── _uploads/           #   ├ 非公開(403): バックエンド経由で配信
+     └── public/             #   └ 公開: フロントエンドが直接参照
